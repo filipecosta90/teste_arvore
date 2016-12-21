@@ -44,8 +44,8 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
   var root;
 
   // size of the diagram
-  var viewerWidth = $(document).width();
-  var viewerHeight = $(document).height();
+  var viewerWidth = $(document).width() * 0.8;
+  var viewerHeight = $(document).height() * 0.8;
 
   var tree = d3.layout.tree()
     .size([viewerHeight, viewerWidth]);
@@ -57,30 +57,30 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
     });
 
   // A recursive helper function for performing some setup by walking through all nodes
-
   function visit(parent, visitFn, childrenFn) {
     if (!parent) return;
-
     visitFn(parent);
 
     var children = childrenFn(parent);
+
     if (children) {
       var count = children.length;
       for (var i = 0; i < count; i++) {
         visit(children[i], visitFn, childrenFn);
+        console.log("i" + i);
       }
     }
   }
 
   // Call visit function to establish maxLabelLength
   visit(treeData, function(d) {
+    console.log();
     totalNodes++;
     maxLabelLength = Math.max(d.name.length, maxLabelLength);
 
   }, function(d) {
     return d.children && d.children.length > 0 ? d.children : null;
   });
-
 
   // sort the tree according to the node names
 
@@ -89,8 +89,10 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
       return b.name.toLowerCase() < a.name.toLowerCase() ? 1 : -1;
     });
   }
+
   // Sort the tree initially incase the JSON isn't in a sorted order.
   sortTree();
+  console.log("sorted tree");
 
   // TODO: Pan function, can be better implemented.
 
@@ -119,12 +121,20 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
     }
   }
 
-  // Define the zoom function for the zoomable tree
+  $("#expand_button").click(function(){
+    root.children.forEach(expand);
+    update(root);
+  });
 
+  $("#collapse_button").click(function(){
+    root.children.forEach(collapse);
+    update(root);
+  });
+
+  // Define the zoom function for the zoomable tree
   function zoom() {
     svgGroup.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
   }
-
 
   // define the zoomListener which calls the zoom function on the "zoom" event constrained within the scaleExtents
   var zoomListener = d3.behavior.zoom().scaleExtent([0.1, 3]).on("zoom", zoom);
@@ -178,11 +188,11 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
     .attr("class", "overlay")
     .call(zoomListener);
 
-
   // Define the drag listeners for drag/drop behaviour of nodes.
   dragListener = d3.behavior.drag()
     .on("dragstart", function(d) {
       if (d == root) {
+        console.log("dragging in root");
         return;
       }
       dragStarted = true;
@@ -232,6 +242,7 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
       return;
     }
     domNode = this;
+
     if (selectedNode) {
       // now remove the element from the parent, and insert it into the new elements children
       var index = draggingNode.parent.children.indexOf(draggingNode);
@@ -274,6 +285,7 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
   // Helper functions for collapsing and expanding nodes.
 
   function collapse(d) {
+    console.log("colapsando");
     if (d.children) {
       d._children = d.children;
       d._children.forEach(collapse);
@@ -293,6 +305,7 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
     selectedNode = d;
     updateTempConnector();
   };
+
   var outCircle = function(d) {
     selectedNode = null;
     updateTempConnector();
@@ -344,6 +357,7 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
   // Toggle children function
 
   function toggleChildren(d) {
+    console.log("toggled");
     if (d.children) {
       d._children = d.children;
       d.children = null;
@@ -357,11 +371,31 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
   // Toggle children on click.
 
   function click(d) {
+    console.log(d);
+    console.log(d.children);
+    console.log("click on");
+    console.log(d.id);
+    var nx = tree.nodes(d);
+    console.log(nx);
+    var node = d3.select(this);
+    console.log("nodo: " + this);
+    node.append("svg")
+      .attr("width", 50)
+      .attr("height", 50)
+      .append("circle")
+      .attr("cx", 25)
+      .attr("cy", 25)
+      .attr("r", 25)
+      .style("fill", "purple")
+      //  .on("click", onAddNode, true)
+      .append("i")
+      .attr("class", "fa fa-plus");
+
     if (d3.event.defaultPrevented) return; // click suppressed
     d = toggleChildren(d);
     update(d);
     centerNode(d);
-  }
+  };
 
   function update(source) {
     // Compute the new height, function counts total children of root node and sets tree height accordingly.
@@ -379,6 +413,7 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
         });
       }
     };
+
     childCount(0, root);
     var newHeight = d3.max(levelWidth) * 25; // 25 pixels per line
     tree = tree.size([newHeight, viewerWidth]);
@@ -409,6 +444,13 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
         return "translate(" + source.y0 + "," + source.x0 + ")";
       })
     .on('click', click);
+
+    //Remove node button
+    nodeEnter.append("a")
+      .attr('class', 'node-remove')
+      //   .on("click", onRemoveNode, true)
+      .append("i")
+      .attr("class", "fa fa-times");
 
     nodeEnter.append("circle")
       .attr('class', 'nodeCircle')
@@ -459,7 +501,7 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
 
     // Change the circle fill depending on whether it has children and is collapsed
     node.select("circle.nodeCircle")
-      .attr("r", 4.5)
+      .attr("r", 5)
       .style("fill", function(d) {
         return d._children ? "lightsteelblue" : "#fff";
       });
@@ -538,7 +580,8 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
 
   // Append a group which holds all nodes and which the zoom Listener can act upon.
   var svgGroup = baseSvg.append("g");
-
+  console.log("Svg group");
+  console.log(svgGroup);
   // Define the root
   root = treeData;
   root.x0 = viewerHeight / 2;
@@ -547,4 +590,5 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
   // Layout the tree initially and center on the root node.
   update(root);
   centerNode(root);
-});
+}
+);
