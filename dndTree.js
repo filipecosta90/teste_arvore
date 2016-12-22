@@ -1,3 +1,60 @@
+var treeData = {
+	"name": "flare",
+    "children": [{
+        "name": "cluster",
+        "children": [{
+            "name": "AgglomerativeCluster"
+          }, {
+            "name": "CommunityStructure"
+          }, {
+            "name": "HierarchicalCluster"
+          }, {
+            "name": "MergeEdge"
+        }
+      ]
+    }
+  ]
+};
+
+
+function getSimpleObj (complexObject)
+{
+  var simpleObject = {};
+  for (var prop in complexObject )
+  {
+    if (!complexObject.hasOwnProperty(prop))
+    {
+      continue;
+    }
+    else if (typeof(complexObject[prop]) == 'object')
+    {
+      var array = complexObject[prop];
+      if( Object.prototype.toString.call( array ) === '[object Array]' )
+      {
+        simpleObject[prop] = [];
+        for(var i = 0; i < array.length; i++)
+        {
+          simpleObject[prop].push(getSimpleObj (array[i]));
+        }
+      }
+    }
+    else if (typeof(complexObject[prop]) == 'function')
+    {
+      continue;
+    }
+    else
+    {
+      simpleObject[prop] = complexObject[prop];
+    }
+  }
+  return simpleObject;
+}
+
+function simpleStringify (object){
+    var simpleObject = getSimpleObj(object);
+    return JSON.stringify(simpleObject); // returns cleaned up JSON
+};
+
 /*Copyright (c) 2013-2016, Rob Schmuecker
   All rights reserved.
 
@@ -27,7 +84,7 @@
 
 
 // Get JSON data
-treeJSON = d3.json("flare.json", function(error, treeData) {
+$( document ).ready(function() {
 
   // Calculate total nodes, max label length
   var totalNodes = 0;
@@ -354,10 +411,42 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
     zoomListener.translate([x, y]);
   }
 
+  var addRemoveStatus = 0;
+  function showAddAndRemove (node)
+  {
+    node.append("svg").on("click", function (){addRemoveStatus = 2}, true)
+        .attr("width", 50)
+        .attr("height", 50)
+        .append("circle")
+        .attr("cx", 20)
+        .attr("cy", 15)
+        .attr("r", 5)
+        .style("fill", "red")
+        .append("i")
+        .attr("class", "fa fa-plus");
+
+        node.append("svg").on("click", function(){addRemoveStatus = 1}, true)
+        .attr("width", 500)
+        .attr("height", 500)
+        .append("circle")
+        .attr("cx", 5)
+        .attr("cy", 15)
+        .attr("r", 5)
+        .style("fill", "green")
+        .append("i")
+        .attr("class", "fa fa-plus");
+  }
+  function hideAddAndRemove (node)
+  {
+    $node = $(node[0]);
+    $node.last().remove();
+    $node.last().remove();
+  }
+
   // Toggle children function
 
   function toggleChildren(d) {
-    console.log("toggled");
+    //console.log("toggled");
     if (d.children) {
       d._children = d.children;
       d.children = null;
@@ -369,27 +458,31 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
   }
 
   // Toggle children on click.
-
-  function click(d) {
-    console.log(d);
-    console.log(d.children);
-    console.log("click on");
-    console.log(d.id);
-    var nx = tree.nodes(d);
-    console.log(nx);
+  
+  function click(d)
+  {
     var node = d3.select(this);
-    console.log("nodo: " + this);
-    node.append("svg")
-      .attr("width", 50)
-      .attr("height", 50)
-      .append("circle")
-      .attr("cx", 25)
-      .attr("cy", 25)
-      .attr("r", 25)
-      .style("fill", "purple")
-      //  .on("click", onAddNode, true)
-      .append("i")
-      .attr("class", "fa fa-plus");
+    this.childElementCount == 6 ? hideAddAndRemove (node) : showAddAndRemove (node);
+
+    switch(addRemoveStatus)
+    {
+      //add
+      case 1:
+      {
+        
+      }
+      break;
+      //remove
+      case 2:
+      {
+        //console.log ("ANTES = " + simpleStringify(treeData));
+        removeNode(d);
+        //console.log ("DEPOIS = " + simpleStringify(treeData));
+        root = treeData;
+      }
+      break;
+    }
+    addRemoveStatus = 0;
 
     if (d3.event.defaultPrevented) return; // click suppressed
     d = toggleChildren(d);
@@ -580,8 +673,8 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
 
   // Append a group which holds all nodes and which the zoom Listener can act upon.
   var svgGroup = baseSvg.append("g");
-  console.log("Svg group");
-  console.log(svgGroup);
+  /*console.log("Svg group");
+  console.log(svgGroup);*/
   // Define the root
   root = treeData;
   root.x0 = viewerHeight / 2;
@@ -592,3 +685,84 @@ treeJSON = d3.json("flare.json", function(error, treeData) {
   centerNode(root);
 }
 );
+
+
+function printTree (node)
+{
+  console.log ("]");
+  if (node.children != undefined && node.children.length != undefined)
+  {
+    for (var i = 0; i < node.children.length; i++)
+    {
+      printTree (node.children[i]);
+    }
+  }
+}
+
+data = treeData;
+function findNode (name)
+{
+  for(var j = 0; j < data.length; j++)
+  {
+    for(var i = 0; i < data.children.length; i++)
+    {
+      res = findNode (name);
+    }
+    if(data[i].name == name)
+    {
+      return data[i].name;
+    }
+  }
+}
+
+function removeNode (node)
+{
+  if (node.children)
+  {
+    node.children.splice(0, node.children.length);
+  }
+  parent = getParent (treeData, node);
+  if(parent &&  parent.children && parent.children.length)
+  {
+    var id = parent.children.indexOf(node);
+    parent.children.splice(id, 1);
+  }
+  else
+  {
+    treeData = {};
+  }
+  console.log ("NODE = " + node.name);
+}
+
+function getParent(tree, childNode)
+{
+    var i, res;
+    if (!tree || !tree.children)
+    {
+        return null;
+    }
+    if( Object.prototype.toString.call(tree.children) === '[object Array]' )
+    {
+        for (i in tree.children)
+        {
+            if (tree.children[i] === childNode)
+            {
+                return tree;
+            }
+            res = getParent(tree.children[i], childNode);
+            if (res)
+            {
+                return res;
+            }
+        }
+        return null;
+    }
+    else
+    {
+        if (tree.children === childNode)
+        {
+            return tree;
+        }
+        return getParent(tree.children, childNode);
+    }
+}
