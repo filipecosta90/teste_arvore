@@ -411,6 +411,8 @@ $( document ).ready(function() {
     zoomListener.translate([x, y]);
   }
 
+  centerNode_ = centerNode;
+
   var addRemoveStatus = 0;
   function showAddAndRemove (node)
   {
@@ -435,12 +437,14 @@ $( document ).ready(function() {
         .style("fill", "green")
         .append("i")
         .attr("class", "fa fa-plus");
+      open_panel();
   }
   function hideAddAndRemove (node)
   {
     $node = $(node[0]);
     $node.last().remove();
     $node.last().remove();
+    close_panel();
   }
 
   // Toggle children function
@@ -457,35 +461,46 @@ $( document ).ready(function() {
     return d;
   }
 
+  function fillForm (node)
+  {
+    var $name = $("input[name='name']");
+    $name.val(node.name);
+    editingNode = node;
+  }
+
   // Toggle children on click.
   
   function click(d)
   {
     var node = d3.select(this);
-    this.childElementCount == 6 ? hideAddAndRemove (node) : showAddAndRemove (node);
-
     switch(addRemoveStatus)
     {
-      //add
-      case 1:
-      {
-        
-      }
-      break;
-      //remove
-      case 2:
-      {
-        //console.log ("ANTES = " + simpleStringify(treeData));
+      case 1://add
+        addNode (d);
+        break;
+
+      case 2://remove
         removeNode(d);
         //console.log ("DEPOIS = " + simpleStringify(treeData));
         root = treeData;
-      }
-      break;
+        break;
+
+      default:
+        if(d.children != null)
+        {
+          hideAddAndRemove (node);
+        }
+        else
+        {
+          fillForm(d);
+          showAddAndRemove (node);
+        }
+        d = toggleChildren(d);
+        break;
     }
     addRemoveStatus = 0;
 
     if (d3.event.defaultPrevented) return; // click suppressed
-    d = toggleChildren(d);
     update(d);
     centerNode(d);
   };
@@ -506,6 +521,8 @@ $( document ).ready(function() {
         });
       }
     };
+
+    update_ = update;
 
     childCount(0, root);
     var newHeight = d3.max(levelWidth) * 25; // 25 pixels per line
@@ -687,31 +704,20 @@ $( document ).ready(function() {
 );
 
 
-function printTree (node)
+function addNode (node)
 {
-  console.log ("]");
-  if (node.children != undefined && node.children.length != undefined)
+  var newChild = {"name": "NOVO!!"};
+  if (node.children != undefined && node.children != null)
   {
-    for (var i = 0; i < node.children.length; i++)
-    {
-      printTree (node.children[i]);
-    }
+    node.children.push(newChild);
   }
-}
-
-data = treeData;
-function findNode (name)
-{
-  for(var j = 0; j < data.length; j++)
+  else if (node._children != undefined && node._children != null)
   {
-    for(var i = 0; i < data.children.length; i++)
-    {
-      res = findNode (name);
-    }
-    if(data[i].name == name)
-    {
-      return data[i].name;
-    }
+    node._children.push(newChild);
+  }
+  else
+  {
+    node.children = [newChild];
   }
 }
 
@@ -765,4 +771,15 @@ function getParent(tree, childNode)
         }
         return getParent(tree.children, childNode);
     }
+}
+
+function submitNode ()
+{
+  console.log ("ANTES = " + simpleStringify(treeData));
+  var $name = $("input[name='name']");
+  editingNode.name = $name.val();
+  if (d3.event && d3.event.defaultPrevented) return; // click suppressed
+  update_ (editingNode);
+  centerNode_(editingNode);
+  console.log ("DEPOIS = " + simpleStringify(treeData));
 }
